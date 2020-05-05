@@ -20,6 +20,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import com.linkfun.mybatis.cache.redis.conn.RedisConnectionPool;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.cache.Cache;
 
 /**
@@ -27,6 +28,7 @@ import org.apache.ibatis.cache.Cache;
  *
  * @author Eduardo Macarron
  */
+@Slf4j
 public final class RedisCache implements Cache {
 
     private final ReadWriteLock readWriteLock = new DummyReadWriteLock();
@@ -46,8 +48,8 @@ public final class RedisCache implements Cache {
         this.id = id;
         redisConfig = RedisConfigurationBuilder.getInstance().parseConfiguration();
         pool = new RedisConnectionPool(redisConfig);
+        if (log.isInfoEnabled()) log.info("create mybatis redis cache : {}", id);
     }
-
 
     @Override
     public String getId() {

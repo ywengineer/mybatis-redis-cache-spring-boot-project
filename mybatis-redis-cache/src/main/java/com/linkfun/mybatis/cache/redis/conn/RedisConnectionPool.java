@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
@@ -39,20 +40,13 @@ import io.lettuce.core.pubsub.StatefulRedisPubSubConnection;
 import io.lettuce.core.support.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.pool2.impl.GenericObjectPool;
-import org.springframework.beans.factory.DisposableBean;
-import org.springframework.data.redis.connection.PoolException;
-import org.springframework.util.Assert;
 
 @Slf4j
-public class RedisConnectionPool implements DisposableBean, Closeable {
+public class RedisConnectionPool implements Closeable {
     private final RedisConfig poolConfig;
-    private final Map<StatefulConnection<?, ?>, GenericObjectPool<StatefulConnection<?, ?>>> poolRef = new ConcurrentHashMap<>(
-            32);
-
-    private final Map<StatefulConnection<?, ?>, AsyncPool<StatefulConnection<?, ?>>> asyncPoolRef = new ConcurrentHashMap<>(
-            32);
-    private final Map<CompletableFuture<StatefulConnection<?, ?>>, AsyncPool<StatefulConnection<?, ?>>> inProgressAsyncPoolRef = new ConcurrentHashMap<>(
-            32);
+    private final Map<StatefulConnection<?, ?>, GenericObjectPool<StatefulConnection<?, ?>>> poolRef = new ConcurrentHashMap<>(32);
+    private final Map<StatefulConnection<?, ?>, AsyncPool<StatefulConnection<?, ?>>> asyncPoolRef = new ConcurrentHashMap<>(32);
+    private final Map<CompletableFuture<StatefulConnection<?, ?>>, AsyncPool<StatefulConnection<?, ?>>> inProgressAsyncPoolRef = new ConcurrentHashMap<>(32);
     private final Map<Class<?>, GenericObjectPool<StatefulConnection<?, ?>>> pools = new ConcurrentHashMap<>(32);
     private final Map<Class<?>, AsyncPool<StatefulConnection<?, ?>>> asyncPools = new ConcurrentHashMap<>(32);
     private final BoundedPoolConfig asyncPoolConfig;
@@ -61,7 +55,7 @@ public class RedisConnectionPool implements DisposableBean, Closeable {
     private boolean clusterInitialized;
 
     public RedisConnectionPool(RedisConfig poolConfig) {
-        Assert.notNull(poolConfig, "RedisConfig must not be null!");
+        Objects.requireNonNull(poolConfig, "RedisConfig must not be null!");
         this.client = RedisUtils.client(poolConfig);
         this.redisURI = poolConfig.getRedisURI();
         this.poolConfig = poolConfig;
@@ -78,7 +72,7 @@ public class RedisConnectionPool implements DisposableBean, Closeable {
             poolRef.put(connection, pool);
             return connectionType.cast(connection);
         } catch (Exception e) {
-            throw new PoolException("Could not get a resource from the pool", e);
+            throw new RuntimeException("Could not get a resource from the pool", e);
         }
     }
 
@@ -176,8 +170,7 @@ public class RedisConnectionPool implements DisposableBean, Closeable {
             AsyncPool<StatefulConnection<?, ?>> asyncPool = asyncPoolRef.remove(connection);
 
             if (asyncPool == null) {
-                throw new PoolException("Returned connection " + connection
-                        + " was either previously returned or does not belong to this connection provider");
+                throw new RuntimeException("Returned connection " + connection + " was either previously returned or does not belong to this connection provider");
             }
 
             discardIfNecessary(connection);
@@ -218,8 +211,7 @@ public class RedisConnectionPool implements DisposableBean, Closeable {
         AsyncPool<StatefulConnection<?, ?>> pool = asyncPoolRef.remove(connection);
 
         if (pool == null) {
-            return RedisUtils.failed(new PoolException("Returned connection " + connection
-                    + " was either previously returned or does not belong to this connection provider"));
+            return RedisUtils.failed(new RuntimeException("Returned connection " + connection + " was either previously returned or does not belong to this connection provider"));
         }
 
         return pool.release(connection);
@@ -247,19 +239,16 @@ public class RedisConnectionPool implements DisposableBean, Closeable {
         }
 
         if (!inProgressAsyncPoolRef.isEmpty()) {
-
             log.warn("LettucePoolingConnectionProvider has active connection retrievals");
             inProgressAsyncPoolRef.forEach((k, v) -> futures.add(k.thenApply(StatefulConnection::closeAsync)));
         }
 
         if (!poolRef.isEmpty()) {
-
             poolRef.forEach((connection, pool) -> pool.returnObject(connection));
             poolRef.clear();
         }
 
         if (!asyncPoolRef.isEmpty()) {
-
             asyncPoolRef.forEach((connection, pool) -> futures.add(pool.release(connection)));
             asyncPoolRef.clear();
         }
@@ -287,14 +276,5 @@ public class RedisConnectionPool implements DisposableBean, Closeable {
 
     public RedisConfig getPoolConfig() {
         return poolConfig;
-    }
-
-    /*
-     * (non-Javadoc)
-     * @see org.springframework.beans.factory.DisposableBean#destroy()
-     */
-    @Override
-    public void destroy() throws Exception {
-        this.close();
     }
 }

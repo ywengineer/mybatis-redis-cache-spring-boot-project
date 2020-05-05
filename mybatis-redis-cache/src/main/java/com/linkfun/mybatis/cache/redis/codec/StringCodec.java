@@ -3,9 +3,9 @@ package com.linkfun.mybatis.cache.redis.codec;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.Objects;
 
 import io.lettuce.core.codec.RedisCodec;
-import org.springframework.util.Assert;
 
 /**
  * Description:
@@ -35,7 +35,7 @@ public class StringCodec implements RedisCodec<String, String> {
      * @param charset must not be {@literal null}.
      */
     public StringCodec(Charset charset) {
-        Assert.notNull(charset, "Charset must not be null!");
+        Objects.requireNonNull(charset, "Charset must not be null!");
         this.charset = charset;
     }
 
