@@ -46,7 +46,7 @@ public final class RedisCache implements Cache {
             throw new IllegalArgumentException("Cache instances require an ID");
         }
         this.id = id;
-        redisConfig = RedisConfigurationBuilder.getInstance().parseConfiguration();
+        redisConfig = RedisConfigurationBuilder.INSTANCE.parseConfiguration();
         pool = new RedisConnectionPool(redisConfig);
         if (log.isInfoEnabled()) log.info("create mybatis redis cache : {}", id);
     }

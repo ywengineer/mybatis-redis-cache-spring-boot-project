@@ -1,1 +1,4 @@
-org.springframework.boot.autoconfigure.EnableAutoConfiguration=
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+  com.linkfun.mybatis.boot.MybatisRedisCacheAutoConfiguration
+org.springframework.boot.env.EnvironmentPostProcessor=\
+  com.linkfun.mybatis.boot.MybatisCacheConfigEnvironmentProcessor

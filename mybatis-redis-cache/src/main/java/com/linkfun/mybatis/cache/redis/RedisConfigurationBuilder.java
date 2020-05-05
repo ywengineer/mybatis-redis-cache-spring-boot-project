@@ -1,23 +1,5 @@
-/**
- * Copyright 2015-2018 the original author or authors.
- * <p>
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * <p>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package com.linkfun.mybatis.cache.redis;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Map;
 import java.util.Properties;
 
 import com.linkfun.mybatis.cache.redis.codec.KryoCodec;
@@ -29,33 +11,16 @@ import org.apache.ibatis.reflection.SystemMetaObject;
 /**
  * Converter from the Config to a proper {@link RedisConfig}.
  *
- * @author Eduardo Macarron
+ * @author Mark Yang
  */
 @Slf4j
-final class RedisConfigurationBuilder {
-
-    /**
-     * This class instance.
-     */
-    private static final RedisConfigurationBuilder INSTANCE = new RedisConfigurationBuilder();
-
-    protected static final String SYSTEM_PROPERTY_REDIS_PROPERTIES_FILENAME = "redis.properties.filename";
-
-    protected static final String REDIS_RESOURCE = "redis.properties";
+enum RedisConfigurationBuilder {
+    INSTANCE;
 
     /**
      * Hidden constructor, this class can't be instantiated.
      */
-    private RedisConfigurationBuilder() {
-    }
-
-    /**
-     * Return this class instance.
-     *
-     * @return this class instance.
-     */
-    public static RedisConfigurationBuilder getInstance() {
-        return INSTANCE;
+    RedisConfigurationBuilder() {
     }
 
     /**
@@ -64,18 +29,8 @@ final class RedisConfigurationBuilder {
      * @return the converted {@link RedisConfig}.
      */
     public RedisConfig parseConfiguration() {
-        return parseConfiguration(getClass().getClassLoader());
-    }
-
-    public RedisConfig parseConfiguration(ClassLoader classLoader) {
         final Properties config = new Properties(System.getProperties());
-        String redisPropertiesFilename = System.getProperty(SYSTEM_PROPERTY_REDIS_PROPERTIES_FILENAME, REDIS_RESOURCE);
-        try (InputStream input = classLoader.getResourceAsStream(redisPropertiesFilename)) {
-            config.load(input);
-        } catch (IOException e) {
-            log.warn("An error occurred while reading classpath property '" + redisPropertiesFilename + "', see nested exceptions", e);
-        }
-        RedisConfig redisConfig = new RedisConfig();
+        final RedisConfig redisConfig = new RedisConfig();
         setConfigProperties(config, redisConfig);
         return redisConfig;
     }
@@ -83,8 +38,9 @@ final class RedisConfigurationBuilder {
     private void setConfigProperties(Properties properties, RedisConfig redisConfig) {
         if (properties != null) {
             MetaObject metaCache = SystemMetaObject.forObject(redisConfig);
-            for (Map.Entry<Object, Object> entry : properties.entrySet()) {
-                String name = (String) entry.getKey();
+            for (String name : properties.stringPropertyNames()) {
+                //
+                final String oriName = name;
                 // All prefix of 'redis.' on property values
                 if (name != null && name.startsWith("redis.")) {
                     name = name.substring(6);
@@ -92,7 +48,7 @@ final class RedisConfigurationBuilder {
                     // Skip non prefixed properties
                     continue;
                 }
-                String value = (String) entry.getValue();
+                String value = properties.getProperty(oriName);
                 if ("codec".equals(name)) {
                     if ("kryo".equalsIgnoreCase(value)) {
                         redisConfig.setCodec(KryoCodec.INSTANCE);

@@ -6,6 +6,7 @@
     <modules>
         <module>mybatis-redis-cache-spring-boot-autoconfigure</module>
         <module>mybatis-redis-cache</module>
+        <module>mybatis-redis-cache-spring-boot-starter</module>
     </modules>
 
     <parent>
