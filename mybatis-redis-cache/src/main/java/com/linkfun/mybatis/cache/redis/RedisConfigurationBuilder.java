@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import com.linkfun.mybatis.cache.redis.codec.KryoCodec;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.cache.CacheException;
 import org.apache.ibatis.reflection.MetaObject;
 import org.apache.ibatis.reflection.SystemMetaObject;
@@ -30,6 +31,7 @@ import org.apache.ibatis.reflection.SystemMetaObject;
  *
  * @author Eduardo Macarron
  */
+@Slf4j
 final class RedisConfigurationBuilder {
 
     /**
@@ -66,17 +68,13 @@ final class RedisConfigurationBuilder {
     }
 
     public RedisConfig parseConfiguration(ClassLoader classLoader) {
-        Properties config = new Properties();
-
+        final Properties config = new Properties(System.getProperties());
         String redisPropertiesFilename = System.getProperty(SYSTEM_PROPERTY_REDIS_PROPERTIES_FILENAME, REDIS_RESOURCE);
-
         try (InputStream input = classLoader.getResourceAsStream(redisPropertiesFilename)) {
             config.load(input);
         } catch (IOException e) {
-            throw new RuntimeException("An error occurred while reading classpath property '" + redisPropertiesFilename
-                    + "', see nested exceptions", e);
+            log.warn("An error occurred while reading classpath property '" + redisPropertiesFilename + "', see nested exceptions", e);
         }
-
         RedisConfig redisConfig = new RedisConfig();
         setConfigProperties(config, redisConfig);
         return redisConfig;
