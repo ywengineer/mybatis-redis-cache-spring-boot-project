@@ -33,11 +33,9 @@ import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
 import io.lettuce.core.cluster.pubsub.StatefulRedisClusterPubSubConnection;
-import io.lettuce.core.codec.RedisCodec;
 import io.lettuce.core.masterreplica.MasterReplica;
 import io.lettuce.core.masterreplica.StatefulRedisMasterReplicaConnection;
 import io.lettuce.core.pubsub.StatefulRedisPubSubConnection;
-import io.lettuce.core.sentinel.api.StatefulRedisSentinelConnection;
 import io.lettuce.core.support.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.pool2.impl.GenericObjectPool;
@@ -59,24 +57,20 @@ public class RedisConnectionPool implements DisposableBean, Closeable {
     private final Map<Class<?>, AsyncPool<StatefulConnection<?, ?>>> asyncPools = new ConcurrentHashMap<>(32);
     private final BoundedPoolConfig asyncPoolConfig;
     private final AbstractRedisClient client;
-    private boolean clusterInitialized;
     private final RedisURI redisURI;
+    private boolean clusterInitialized;
 
     public RedisConnectionPool(RedisConfig poolConfig) {
         Assert.notNull(poolConfig, "RedisConfig must not be null!");
         this.client = RedisUtils.client(poolConfig);
-        this.redisURI = RedisURI.create(poolConfig.getUri());
+        this.redisURI = poolConfig.getRedisURI();
         this.poolConfig = poolConfig;
         this.asyncPoolConfig = CommonsPool2ConfigConverter.bounded(this.poolConfig);
     }
 
     public <T extends StatefulConnection<?, ?>> T getConnection(Class<T> connectionType) {
-        return getConnection(connectionType, poolConfig.getCodec());
-    }
-
-    public <T extends StatefulConnection<?, ?>, K, V> T getConnection(Class<T> connectionType, RedisCodec<K, V> codec) {
         GenericObjectPool<StatefulConnection<?, ?>> pool = pools.computeIfAbsent(connectionType, poolType -> {
-            return ConnectionPoolSupport.createGenericObjectPool(() -> _getConnection(connectionType, codec), poolConfig, false);
+            return ConnectionPoolSupport.createGenericObjectPool(() -> _getConnection(connectionType), poolConfig, false);
         });
 
         try {
@@ -88,15 +82,10 @@ public class RedisConnectionPool implements DisposableBean, Closeable {
         }
     }
 
-    public <T extends StatefulConnection<?, ?>> CompletionStage<T> getConnectionAsync(Class<T> connectionType) {
-        return getConnectionAsync(connectionType, poolConfig.getCodec());
-
-    }
-
-    public <T extends StatefulConnection<?, ?>, K, V> CompletionStage<T> getConnectionAsync(Class<T> connectionType, RedisCodec<K, V> codec) {
+    public <T extends StatefulConnection<?, ?>, K, V> CompletionStage<T> getConnectionAsync(Class<T> connectionType) {
 
         AsyncPool<StatefulConnection<?, ?>> pool = asyncPools.computeIfAbsent(connectionType, poolType -> AsyncConnectionPoolSupport.createBoundedObjectPool(
-                () -> _getConnectionAsync(connectionType, codec, redisURI).thenApply(connectionType::cast), asyncPoolConfig,
+                () -> _getConnectionAsync(connectionType).thenApply(connectionType::cast), asyncPoolConfig,
                 false));
 
         CompletableFuture<StatefulConnection<?, ?>> acquire = pool.acquire();
@@ -112,36 +101,35 @@ public class RedisConnectionPool implements DisposableBean, Closeable {
         }).thenApply(connectionType::cast);
     }
 
-    private <T extends StatefulConnection<?, ?>, K, V> T _getConnection(Class<T> connectionType, RedisCodec<K, V> codec) {
+    private <T extends StatefulConnection<?, ?>> T _getConnection(Class<T> connectionType) {
         if (client instanceof RedisClient) {
-            if (connectionType.equals(StatefulRedisSentinelConnection.class)) {
-                return connectionType.cast(((RedisClient) client).connectSentinel());
+            if (connectionType.equals(StatefulRedisMasterReplicaConnection.class)) {
+                return connectionType.cast(MasterReplica.connect(((RedisClient) client), this.poolConfig.getCodec(), this.redisURI));
             }
             if (connectionType.equals(StatefulRedisPubSubConnection.class)) {
-                return connectionType.cast(((RedisClient) client).connectPubSub(codec));
+                return connectionType.cast(((RedisClient) client).connectPubSub(this.poolConfig.getCodec()));
             }
             if (StatefulConnection.class.isAssignableFrom(connectionType)) {
-                return connectionType.cast(((RedisClient) client).connect(codec));
+                return connectionType.cast(((RedisClient) client).connect(this.poolConfig.getCodec()));
             }
         } else {
-            return RedisUtils.join(getConnectionAsync(connectionType, codec));
+            return RedisUtils.join(getConnectionAsync(connectionType));
         }
         throw new UnsupportedOperationException("Connection type " + connectionType + " not supported!");
     }
 
-    private <T extends StatefulConnection<?, ?>, K, V> CompletionStage<T> _getConnectionAsync(Class<T> connectionType, RedisCodec<K, V> codec, RedisURI redisURI) {
+    private <T extends StatefulConnection<?, ?>> CompletionStage<T> _getConnectionAsync(Class<T> connectionType) {
 
         if (client instanceof RedisClient) {
             RedisClient redisClient = ((RedisClient) client);
-            if (connectionType.equals(StatefulRedisSentinelConnection.class)) {
-                return redisClient.connectSentinelAsync(codec, redisURI).thenApply(connectionType::cast);
+            if (connectionType.equals(StatefulRedisMasterReplicaConnection.class)) {
+                return MasterReplica.connectAsync((RedisClient) client, this.poolConfig.getCodec(), redisURI).thenApply(connectionType::cast);
             }
             if (connectionType.equals(StatefulRedisPubSubConnection.class)) {
-                return redisClient.connectPubSubAsync(codec, redisURI).thenApply(connectionType::cast);
+                return redisClient.connectPubSubAsync(this.poolConfig.getCodec(), redisURI).thenApply(connectionType::cast);
             }
             if (StatefulConnection.class.isAssignableFrom(connectionType)) {
-                return this.masterReplicaConnectionAsync(redisURI, codec)
-                        .thenApply(connectionType::cast);
+                return redisClient.connectAsync(this.poolConfig.getCodec(), redisURI).thenApply(connectionType::cast);
             }
         } else {
             if (!clusterInitialized) {
@@ -159,25 +147,20 @@ public class RedisConnectionPool implements DisposableBean, Closeable {
             if (connectionType.equals(StatefulRedisPubSubConnection.class)
                     || connectionType.equals(StatefulRedisClusterPubSubConnection.class)) {
 
-                return ((RedisClusterClient) client).connectPubSubAsync(codec) //
+                return ((RedisClusterClient) client).connectPubSubAsync(this.poolConfig.getCodec()) //
                         .thenApply(connectionType::cast);
             }
 
             if (StatefulRedisClusterConnection.class.isAssignableFrom(connectionType)
                     || connectionType.equals(StatefulConnection.class)) {
 
-                return ((RedisClusterClient) client).connectAsync(codec) //
+                return ((RedisClusterClient) client).connectAsync(this.poolConfig.getCodec()) //
                         .thenApply(connectionType::cast);
             }
 
         }
 
         return RedisUtils.failed(new UnsupportedOperationException("Connection type " + connectionType + " not supported!"));
-    }
-
-    private <K, V> CompletionStage<StatefulRedisConnection<?, ?>> masterReplicaConnectionAsync(RedisURI redisUri, RedisCodec<K, V> codec) {
-        CompletableFuture<? extends StatefulRedisMasterReplicaConnection<?, ?>> connection = MasterReplica.connectAsync((RedisClient) client, codec, redisUri);
-        return connection.thenApply(v -> v);
     }
 
     /*
@@ -300,6 +283,10 @@ public class RedisConnectionPool implements DisposableBean, Closeable {
                 .join();
 
         pools.clear();
+    }
+
+    public RedisConfig getPoolConfig() {
+        return poolConfig;
     }
 
     /*

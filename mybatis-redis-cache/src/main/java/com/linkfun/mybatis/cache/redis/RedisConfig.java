@@ -15,6 +15,7 @@
  */
 package com.linkfun.mybatis.cache.redis;
 
+import io.lettuce.core.RedisURI;
 import io.lettuce.core.api.StatefulConnection;
 import io.lettuce.core.codec.RedisCodec;
 import lombok.Getter;
@@ -28,4 +29,8 @@ public class RedisConfig extends GenericObjectPoolConfig<StatefulConnection<?, ?
     private String uri;
     private RedisCodec<?, ?> codec;
     private Mode mode = Mode.standalone;
+
+    public final RedisURI getRedisURI() {
+        return RedisURI.create(uri);
+    }
 }

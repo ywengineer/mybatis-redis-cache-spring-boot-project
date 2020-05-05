@@ -19,6 +19,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 
 import com.linkfun.mybatis.cache.redis.conn.RedisConnectionPool;
 import io.lettuce.core.api.StatefulRedisConnection;
+import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
 import org.apache.ibatis.cache.Cache;
 
 /**
@@ -55,37 +56,85 @@ public final class RedisCache implements Cache {
 
     @Override
     public int getSize() {
-        final StatefulRedisConnection<String, Object> kryo = pool.getConnection(StatefulRedisConnection.class);
-        return kryo.sync().hlen(id).intValue();
+        return (int) new CacheJob(pool) {
+            @Override
+            protected Object inStandalone(StatefulRedisConnection<String, Object> conn) {
+                return conn.sync().hlen(id).intValue();
+            }
+
+            @Override
+            protected Object inCluster(StatefulRedisClusterConnection<String, Object> conn) {
+                return conn.sync().hlen(id).intValue();
+            }
+        }.call();
     }
 
     @Override
     public void putObject(final Object key, final Object value) {
-        final StatefulRedisConnection<String, Object> kryo = pool.getConnection(StatefulRedisConnection.class);
-        kryo.sync().hset(id, key.toString(), value);
-        if (timeout != null && kryo.sync().ttl(id) == -1) {
-            kryo.sync().expire(id, timeout);
-        }
+        new CacheJob(pool) {
+            @Override
+            protected Object inStandalone(StatefulRedisConnection<String, Object> conn) {
+                conn.sync().hset(id, key.toString(), value);
+                if (timeout != null && conn.sync().ttl(id) == -1) {
+                    conn.sync().expire(id, timeout);
+                }
+                return null;
+            }
+
+            @Override
+            protected Object inCluster(StatefulRedisClusterConnection<String, Object> conn) {
+                conn.sync().hset(id, key.toString(), value);
+                if (timeout != null && conn.sync().ttl(id) == -1) {
+                    conn.sync().expire(id, timeout);
+                }
+                return null;
+            }
+        }.call();
     }
 
     @Override
     public Object getObject(final Object key) {
-        final StatefulRedisConnection<String, Object> kryo = pool.getConnection(StatefulRedisConnection.class);
-        return kryo.sync().hget(id, key.toString());
+        return new CacheJob(pool) {
+            @Override
+            protected Object inStandalone(StatefulRedisConnection<String, Object> conn) {
+                return conn.sync().hget(id, key.toString());
+            }
+
+            @Override
+            protected Object inCluster(StatefulRedisClusterConnection<String, Object> conn) {
+                return conn.sync().hget(id, key.toString());
+            }
+        }.call();
     }
 
     @Override
     public Object removeObject(final Object key) {
-        final StatefulRedisConnection<String, Object> kryo = pool.getConnection(StatefulRedisConnection.class);
-        kryo.sync().hdel(id, key.toString());
-        return null;
+        return new CacheJob(pool) {
+            @Override
+            protected Object inStandalone(StatefulRedisConnection<String, Object> conn) {
+                return conn.sync().hdel(id, key.toString());
+            }
+
+            @Override
+            protected Object inCluster(StatefulRedisClusterConnection<String, Object> conn) {
+                return conn.sync().hdel(id, key.toString());
+            }
+        }.call();
     }
 
     @Override
     public void clear() {
-        final StatefulRedisConnection<String, Object> kryo = pool.getConnection(StatefulRedisConnection.class);
-        kryo.sync().del(id);
+        new CacheJob(pool) {
+            @Override
+            protected Object inStandalone(StatefulRedisConnection<String, Object> conn) {
+                return conn.sync().del(id);
+            }
 
+            @Override
+            protected Object inCluster(StatefulRedisClusterConnection<String, Object> conn) {
+                return conn.sync().del(id);
+            }
+        }.call();
     }
 
     @Override

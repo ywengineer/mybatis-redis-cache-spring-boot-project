@@ -65,30 +65,16 @@ final class RedisConfigurationBuilder {
         return parseConfiguration(getClass().getClassLoader());
     }
 
-    /**
-     * Parses the Config and builds a new {@link RedisConfig}.
-     *
-     * @param the {@link ClassLoader} used to load the {@code memcached.properties} file in classpath.
-     * @return the converted {@link RedisConfig}.
-     */
     public RedisConfig parseConfiguration(ClassLoader classLoader) {
         Properties config = new Properties();
 
         String redisPropertiesFilename = System.getProperty(SYSTEM_PROPERTY_REDIS_PROPERTIES_FILENAME, REDIS_RESOURCE);
-        InputStream input = classLoader.getResourceAsStream(redisPropertiesFilename);
-        if (input != null) {
-            try {
-                config.load(input);
-            } catch (IOException e) {
-                throw new RuntimeException("An error occurred while reading classpath property '" + redisPropertiesFilename
-                        + "', see nested exceptions", e);
-            } finally {
-                try {
-                    input.close();
-                } catch (IOException e) {
-                    // close quietly
-                }
-            }
+
+        try (InputStream input = classLoader.getResourceAsStream(redisPropertiesFilename)) {
+            config.load(input);
+        } catch (IOException e) {
+            throw new RuntimeException("An error occurred while reading classpath property '" + redisPropertiesFilename
+                    + "', see nested exceptions", e);
         }
 
         RedisConfig redisConfig = new RedisConfig();
@@ -138,6 +124,8 @@ final class RedisConfigurationBuilder {
                         metaCache.setValue(name, Boolean.valueOf(value));
                     } else if (double.class == type || Double.class == type) {
                         metaCache.setValue(name, Double.valueOf(value));
+                    } else if (Mode.class == type) {
+                        metaCache.setValue(name, Mode.valueOf(value));
                     } else {
                         throw new CacheException("Unsupported property type: '" + name + "' of type " + type);
                     }

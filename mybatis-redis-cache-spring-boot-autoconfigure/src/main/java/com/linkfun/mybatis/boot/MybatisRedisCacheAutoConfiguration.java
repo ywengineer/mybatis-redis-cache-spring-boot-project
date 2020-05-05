@@ -1,4 +1,4 @@
-package com.linkfun.mybatis.cache.redis;
+package com.linkfun.mybatis.boot;
 
 /**
  * Description:
@@ -6,8 +6,7 @@ package com.linkfun.mybatis.cache.redis;
  * User: Mark.Yang
  * Email: ywengineer@gmail.com
  * Date: 2020-05-05
- * Time: 00:37
+ * Time: 13:10
  */
-public enum Mode {
-    standalone, cluster
+public class MybatisRedisCacheAutoConfiguration {
 }

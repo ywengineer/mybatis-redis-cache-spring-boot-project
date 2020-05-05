@@ -1,19 +1,15 @@
 package com.linkfun.mybatis.cache.redis.conn;
 
-import java.util.Arrays;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import com.linkfun.mybatis.cache.redis.Mode;
 import com.linkfun.mybatis.cache.redis.RedisConfig;
 import io.lettuce.core.AbstractRedisClient;
 import io.lettuce.core.ClientOptions;
 import io.lettuce.core.RedisClient;
-import io.lettuce.core.RedisURI;
 import io.lettuce.core.cluster.ClusterClientOptions;
 import io.lettuce.core.cluster.RedisClusterClient;
 import org.springframework.data.redis.connection.lettuce.LettuceExceptionConverter;
@@ -101,22 +97,15 @@ class RedisUtils {
         if (StringUtils.isEmpty(config.getUri())) {
             config.setUri("redis://localhost:6379/0");
         }
-        List<RedisURI> uriList = Arrays.stream(config.getUri().split(",")).map(RedisURI::create)
-                .collect(Collectors.toList());
-        if (uriList.size() == 1) {
-            client = RedisClient.create();
-            ((RedisClient) client).setOptions(ClientOptions.builder().
+        if (config.getMode() == Mode.cluster) {
+            client = RedisClusterClient.create(config.getRedisURI());
+            ((RedisClusterClient) client).setOptions(ClusterClientOptions.builder().
+                    autoReconnect(true).
                     disconnectedBehavior(ClientOptions.DisconnectedBehavior.REJECT_COMMANDS).build());
         } else {
-            if (config.getMode() == Mode.master_slave) {
-                client = RedisClient.create();
-                ((RedisClient) client).setOptions(ClientOptions.builder().
-                        disconnectedBehavior(ClientOptions.DisconnectedBehavior.REJECT_COMMANDS).build());
-            } else {
-                client = RedisClusterClient.create(uriList);
-                ((RedisClusterClient) client).setOptions(ClusterClientOptions.builder().
-                        disconnectedBehavior(ClientOptions.DisconnectedBehavior.REJECT_COMMANDS).build());
-            }
+            client = RedisClient.create(config.getRedisURI());
+            ((RedisClient) client).setOptions(ClientOptions.builder().
+                    disconnectedBehavior(ClientOptions.DisconnectedBehavior.REJECT_COMMANDS).build());
         }
         return client;
     }
