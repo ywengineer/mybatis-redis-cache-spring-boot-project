@@ -37,6 +37,6 @@ public class MybatisCacheConfigEnvironmentProcessor implements EnvironmentPostPr
 
     @Override
     public int getOrder() {
-        return Ordered.LOWEST_PRECEDENCE - 6;
+        return Ordered.LOWEST_PRECEDENCE;
     }
 }
