@@ -18,7 +18,6 @@ public final class RedisCache implements Cache {
 
     private final ReadWriteLock readWriteLock = new DummyReadWriteLock();
     private static RedisConnectionPool pool;
-    private static RedisConfig redisConfig;
     //
     private String id;
     private Integer timeout;
@@ -32,7 +31,7 @@ public final class RedisCache implements Cache {
         if (pool == null) {
             synchronized (RedisCache.class) {
                 if (pool == null) {
-                    redisConfig = RedisConfigParser.INSTANCE.parseConfiguration();
+                    final RedisConfig redisConfig = RedisConfigParser.INSTANCE.parseConfiguration();
                     pool = new RedisConnectionPool(redisConfig);
                 }
             }
