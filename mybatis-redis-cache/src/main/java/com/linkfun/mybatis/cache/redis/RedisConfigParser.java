@@ -14,13 +14,13 @@ import org.apache.ibatis.reflection.SystemMetaObject;
  * @author Mark Yang
  */
 @Slf4j
-enum RedisConfigurationBuilder {
+enum RedisConfigParser {
     INSTANCE;
 
     /**
      * Hidden constructor, this class can't be instantiated.
      */
-    RedisConfigurationBuilder() {
+    RedisConfigParser() {
     }
 
     /**

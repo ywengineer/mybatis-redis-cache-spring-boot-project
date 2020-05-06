@@ -3,7 +3,6 @@ package com.linkfun.mybatis.boot.properties;
 import com.linkfun.mybatis.cache.redis.Mode;
 import lombok.Getter;
 import lombok.Setter;
-import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -22,6 +21,16 @@ public class MybatisRedisCacheProperties {
     private String uri = "redis://localhost:6379/6";
     private String codec = "kryo";
     private Mode mode = Mode.standalone;
-    private GenericObjectPoolConfig<?> pool;
+    private Pool pool;
+
+    @Getter
+    @Setter
+    public static class Pool {
+        private int maxIdle = 8;
+        private int minIdle = 0;
+        private int maxActive = 8;
+        private long maxWaitMillis = -1;
+        private long timeBetweenEvictionRunsMillis = -1;
+    }
 }
 

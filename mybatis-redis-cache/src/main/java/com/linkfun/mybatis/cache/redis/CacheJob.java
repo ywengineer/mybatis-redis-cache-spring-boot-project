@@ -18,7 +18,7 @@ import io.lettuce.core.masterreplica.StatefulRedisMasterReplicaConnection;
  * Time: 12:21
  */
 public abstract class CacheJob implements Callable<Object> {
-    private RedisConnectionPool pool;
+    private final RedisConnectionPool pool;
 
     public CacheJob(RedisConnectionPool pool) {
         Objects.requireNonNull(pool, "redis connection pool must be non null");

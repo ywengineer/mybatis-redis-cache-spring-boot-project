@@ -28,9 +28,11 @@ public class MybatisCacheConfigEnvironmentProcessor implements EnvironmentPostPr
         System.setProperty("redis.uri", environment.getRequiredProperty("mybatis.cache.redis.uri"));
         System.setProperty("redis.codec", environment.getRequiredProperty("mybatis.cache.redis.codec"));
         System.setProperty("redis.mode", environment.getRequiredProperty("mybatis.cache.redis.mode"));
-        System.setProperty("redis.maxTotal", environment.getProperty("mybatis.cache.redis.pool.max-total", "8"));
+        System.setProperty("redis.maxTotal", environment.getProperty("mybatis.cache.redis.pool.max-active", "8"));
         System.setProperty("redis.maxIdle", environment.getProperty("mybatis.cache.redis.pool.max-idle", "8"));
         System.setProperty("redis.minIdle", environment.getProperty("mybatis.cache.redis.pool.min-idle", "0"));
+        System.setProperty("redis.maxWaitMillis", environment.getProperty("mybatis.cache.redis.pool.max-wait-millis", "-1"));
+        System.setProperty("redis.timeBetweenEvictionRunsMillis", environment.getProperty("mybatis.cache.redis.pool.time-between-eviction-runs-millis", "-1"));
     }
 
     @Override
