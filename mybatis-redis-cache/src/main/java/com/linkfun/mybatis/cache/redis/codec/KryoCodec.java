@@ -4,45 +4,39 @@ package com.linkfun.mybatis.cache.redis.codec;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.HashSet;
+import java.util.Set;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+import com.esotericsoftware.kryo.serializers.CompatibleFieldSerializer;
+import com.google.common.collect.Sets;
 import io.lettuce.core.codec.RedisCodec;
+import io.netty.util.concurrent.FastThreadLocal;
+import org.apache.commons.lang3.tuple.Triple;
 
-/**
- * SerializeUtil with Kryo, which is faster and more space consuming.
- *
- * @author Lei Jiang(ladd.cn@gmail.com)
- */
 public enum KryoCodec implements RedisCodec<String, Object> {
     // Enum singleton, which is preferred approach since Java 1.5
     INSTANCE;
 
-    private Kryo kryo;
-    private Output output;
-    private Input input;
-    /**
-     * Classes which can not resolved by default kryo serializer, which occurs very
-     * rare(https://github.com/EsotericSoftware/kryo#using-standard-java-serialization) For these classes, we will use
-     * fallbackSerializer(use JDKSerializer now) to resolve.
-     */
-    private HashSet<Class<?>> unnormalClassSet;
+    private Set<Class<?>> unNormalClassSet;
+    private Set<Integer> unNormalBytesHashCodeSet;
 
-    /**
-     * Hash codes of unnormal bytes which can not resolved by default kryo serializer, which will be resolved by
-     * fallbackSerializer
-     */
-    private HashSet<Integer> unnormalBytesHashCodeSet;
     private RedisCodec<String, Object> fallbackSerializer;
+    // Setup ThreadLocal of Kryo instances
+    private static final FastThreadLocal<Triple<Kryo, Input, Output>> kryos = new FastThreadLocal<Triple<Kryo, Input, Output>>() {
+        @Override
+        protected Triple<Kryo, Input, Output> initialValue() throws Exception {
+            final Kryo kryo = new Kryo();
+            kryo.setDefaultSerializer(CompatibleFieldSerializer.class);
+//            kryo.getFieldSerializerConfig().setCachedFieldNameStrategy(FieldSerializer.CachedFieldNameStrategy.EXTENDED);
+            return Triple.of(kryo, new Input(), new Output(200, -1));
+        }
+    };
 
     KryoCodec() {
-        kryo = new Kryo();
-        output = new Output(200, -1);
-        input = new Input();
-        unnormalClassSet = new HashSet<Class<?>>();
-        unnormalBytesHashCodeSet = new HashSet<Integer>();
+        unNormalClassSet = Sets.newConcurrentHashSet();
+        unNormalBytesHashCodeSet = Sets.newConcurrentHashSet();
         fallbackSerializer = JDKCodec.INSTANCE;// use JDKSerializer as fallback
     }
 
@@ -70,17 +64,18 @@ public enum KryoCodec implements RedisCodec<String, Object> {
         }
         final byte[] b = Strings.readAll(bytes);
         int hashCode = Arrays.hashCode(b);
-        if (!unnormalBytesHashCodeSet.contains(hashCode)) {
+        if (!unNormalBytesHashCodeSet.contains(hashCode)) {
             /**
              * In the following cases: 1. This bytes occurs for the first time. 2. This bytes have occurred and can be
              * resolved by default kryo serializer
              */
             try {
-                input.setBuffer(b);
-                return kryo.readClassAndObject(input);
+                final Triple<Kryo, Input, Output> triple = kryos.get();
+                triple.getMiddle().setBuffer(b);
+                return triple.getLeft().readClassAndObject(triple.getMiddle());
             } catch (Exception e) {
                 // For unnormal bytes occurred for the first time, exception will be thrown
-                unnormalBytesHashCodeSet.add(hashCode);
+                unNormalBytesHashCodeSet.add(hashCode);
                 return fallbackSerializer.decodeValue(bytes);// use fallback Serializer to resolve
             }
         } else {
@@ -108,18 +103,19 @@ public enum KryoCodec implements RedisCodec<String, Object> {
      */
     @Override
     public ByteBuffer encodeValue(Object object) {
-        output.clear();
-        if (!unnormalClassSet.contains(object.getClass())) {
+        if (!unNormalClassSet.contains(object.getClass())) {
             /**
              * In the following cases: 1. This class occurs for the first time. 2. This class have occurred and can be
              * resolved by default kryo serializer
              */
             try {
-                kryo.writeClassAndObject(output, object);
-                return ByteBuffer.wrap(output.toBytes());
+                final Triple<Kryo, Input, Output> triple = kryos.get();
+                triple.getRight().clear();
+                triple.getLeft().writeClassAndObject(triple.getRight(), object);
+                return ByteBuffer.wrap(triple.getRight().toBytes());
             } catch (Exception e) {
                 // For unnormal class occurred for the first time, exception will be thrown
-                unnormalClassSet.add(object.getClass());
+                unNormalClassSet.add(object.getClass());
                 return fallbackSerializer.encodeValue(object);// use fallback Serializer to resolve
             }
         } else {
