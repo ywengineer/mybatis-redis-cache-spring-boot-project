@@ -20,8 +20,9 @@ public final class RedisCache implements Cache {
     private final ReadWriteLock readWriteLock = new DummyReadWriteLock();
     private static RedisConnectionPool pool;
     //
-    private String id;
+    private final String id;
     private Integer timeout;
+    private final String cacheKey;
 
     public RedisCache(final String id) {
         if (id == null) {
@@ -36,7 +37,8 @@ public final class RedisCache implements Cache {
                 }
             }
         }
-        this.id = MessageFormatter.format("{}_{}", id, pool.getPoolConfig().getCodec().getClass().getSimpleName()).getMessage();
+        this.id = id;
+        this.cacheKey = MessageFormatter.format("{}_{}", id, pool.getPoolConfig().getCodec().getClass().getSimpleName()).getMessage();
         //
         if (log.isInfoEnabled()) log.info("create mybatis redis cache : {}", id);
     }
@@ -51,12 +53,12 @@ public final class RedisCache implements Cache {
         return (int) new CacheJob(pool) {
             @Override
             protected Object inStandalone(StatefulRedisConnection<String, Object> conn) {
-                return conn.sync().hlen(id).intValue();
+                return conn.sync().hlen(cacheKey).intValue();
             }
 
             @Override
             protected Object inCluster(StatefulRedisClusterConnection<String, Object> conn) {
-                return conn.sync().hlen(id).intValue();
+                return conn.sync().hlen(cacheKey).intValue();
             }
         }.call();
     }
@@ -66,18 +68,18 @@ public final class RedisCache implements Cache {
         new CacheJob(pool) {
             @Override
             protected Object inStandalone(StatefulRedisConnection<String, Object> conn) {
-                conn.sync().hset(id, key.toString(), value);
-                if (timeout != null && conn.sync().ttl(id) == -1) {
-                    conn.sync().expire(id, timeout);
+                conn.sync().hset(cacheKey, key.toString(), value);
+                if (timeout != null && conn.sync().ttl(cacheKey) == -1) {
+                    conn.sync().expire(cacheKey, timeout);
                 }
                 return null;
             }
 
             @Override
             protected Object inCluster(StatefulRedisClusterConnection<String, Object> conn) {
-                conn.sync().hset(id, key.toString(), value);
-                if (timeout != null && conn.sync().ttl(id) == -1) {
-                    conn.sync().expire(id, timeout);
+                conn.sync().hset(cacheKey, key.toString(), value);
+                if (timeout != null && conn.sync().ttl(cacheKey) == -1) {
+                    conn.sync().expire(cacheKey, timeout);
                 }
                 return null;
             }
@@ -89,12 +91,12 @@ public final class RedisCache implements Cache {
         return new CacheJob(pool) {
             @Override
             protected Object inStandalone(StatefulRedisConnection<String, Object> conn) {
-                return conn.sync().hget(id, key.toString());
+                return conn.sync().hget(cacheKey, key.toString());
             }
 
             @Override
             protected Object inCluster(StatefulRedisClusterConnection<String, Object> conn) {
-                return conn.sync().hget(id, key.toString());
+                return conn.sync().hget(cacheKey, key.toString());
             }
         }.call();
     }
@@ -104,12 +106,12 @@ public final class RedisCache implements Cache {
         return new CacheJob(pool) {
             @Override
             protected Object inStandalone(StatefulRedisConnection<String, Object> conn) {
-                return conn.sync().hdel(id, key.toString());
+                return conn.sync().hdel(cacheKey, key.toString());
             }
 
             @Override
             protected Object inCluster(StatefulRedisClusterConnection<String, Object> conn) {
-                return conn.sync().hdel(id, key.toString());
+                return conn.sync().hdel(cacheKey, key.toString());
             }
         }.call();
     }
@@ -119,12 +121,12 @@ public final class RedisCache implements Cache {
         new CacheJob(pool) {
             @Override
             protected Object inStandalone(StatefulRedisConnection<String, Object> conn) {
-                return conn.sync().del(id);
+                return conn.sync().del(cacheKey);
             }
 
             @Override
             protected Object inCluster(StatefulRedisClusterConnection<String, Object> conn) {
-                return conn.sync().del(id);
+                return conn.sync().del(cacheKey);
             }
         }.call();
     }
@@ -136,7 +138,10 @@ public final class RedisCache implements Cache {
 
     @Override
     public String toString() {
-        return "Redis {" + id + "}";
+        return "RedisCache{" + "id='" + id + '\'' +
+                ", timeout=" + timeout +
+                ", cacheKey='" + cacheKey + '\'' +
+                '}';
     }
 
     public void setTimeout(Integer timeout) {
