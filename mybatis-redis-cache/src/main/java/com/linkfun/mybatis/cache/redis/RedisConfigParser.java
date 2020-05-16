@@ -3,6 +3,7 @@ package com.linkfun.mybatis.cache.redis;
 import java.util.Properties;
 
 import com.linkfun.mybatis.cache.redis.codec.KryoCodec;
+import com.linkfun.mybatis.cache.redis.codec.ProtostuffCodec;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.cache.CacheException;
 import org.apache.ibatis.reflection.MetaObject;
@@ -56,6 +57,8 @@ enum RedisConfigParser {
 //                        redisConfig.setCodec(ByteBufferCodec.INSTANCE);
 //                    } else if ("string".equalsIgnoreCase(value)) {
 //                        redisConfig.setCodec(new StringCodec());
+                    } else if ("protostuff".equalsIgnoreCase(value)) {
+                        redisConfig.setCodec(ProtostuffCodec.INSTANCE);
                     } else if (!"jdk".equalsIgnoreCase(value)) {
                         // Custom serializer is not supported yet.
                         throw new CacheException("Unknown serializer: '" + value + "'");
