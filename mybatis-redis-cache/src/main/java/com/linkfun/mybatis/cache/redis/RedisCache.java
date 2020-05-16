@@ -7,6 +7,7 @@ import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.cache.Cache;
+import org.slf4j.helpers.MessageFormatter;
 
 /**
  * Cache adapter for Redis.
@@ -26,7 +27,6 @@ public final class RedisCache implements Cache {
         if (id == null) {
             throw new IllegalArgumentException("Cache instances require an ID");
         }
-        this.id = id;
         // use share connection pool.
         if (pool == null) {
             synchronized (RedisCache.class) {
@@ -36,6 +36,7 @@ public final class RedisCache implements Cache {
                 }
             }
         }
+        this.id = MessageFormatter.format("{}_{}", id, pool.getPoolConfig().getCodec().getClass().getSimpleName()).getMessage();
         //
         if (log.isInfoEnabled()) log.info("create mybatis redis cache : {}", id);
     }
