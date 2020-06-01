@@ -21,4 +21,8 @@ class Strings {
         buffer.get(b);
         return b;
     }
+
+    static String nullEmpty(String v) {
+        return v == null ? "" : v;
+    }
 }

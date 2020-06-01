@@ -92,7 +92,7 @@ public enum KryoCodec implements RedisCodec<String, Object> {
      */
     @Override
     public ByteBuffer encodeKey(String key) {
-        return ByteBuffer.wrap(key.getBytes(StandardCharsets.UTF_8));
+        return ByteBuffer.wrap(Strings.nullEmpty(key).getBytes(StandardCharsets.UTF_8));
     }
 
     /**
@@ -103,6 +103,9 @@ public enum KryoCodec implements RedisCodec<String, Object> {
      */
     @Override
     public ByteBuffer encodeValue(Object object) {
+        if (object == null) {
+            object = new Object();
+        }
         if (!unNormalClassSet.contains(object.getClass())) {
             /**
              * In the following cases: 1. This class occurs for the first time. 2. This class have occurred and can be

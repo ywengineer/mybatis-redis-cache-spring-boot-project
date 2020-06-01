@@ -60,7 +60,7 @@ public enum JDKCodec implements RedisCodec<String, Object> {
      */
     @Override
     public ByteBuffer encodeKey(String key) {
-        return ByteBuffer.wrap(key.getBytes(charset));
+        return ByteBuffer.wrap(Strings.nullEmpty(key).getBytes(charset));
     }
 
     /**
@@ -71,6 +71,9 @@ public enum JDKCodec implements RedisCodec<String, Object> {
      */
     @Override
     public ByteBuffer encodeValue(Object value) {
+        if (value == null) {
+            value = new Object();
+        }
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
              ObjectOutputStream oos = new ObjectOutputStream(baos)) {
             oos.writeObject(value);

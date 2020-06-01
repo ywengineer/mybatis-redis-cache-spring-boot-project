@@ -69,7 +69,7 @@ public class StringCodec implements RedisCodec<String, String> {
      */
     @Override
     public ByteBuffer encodeKey(String key) {
-        return ByteBuffer.wrap(key.getBytes(this.charset));
+        return ByteBuffer.wrap(Strings.nullEmpty(key).getBytes(this.charset));
     }
 
     /**
@@ -80,7 +80,7 @@ public class StringCodec implements RedisCodec<String, String> {
      */
     @Override
     public ByteBuffer encodeValue(String value) {
-        return ByteBuffer.wrap(value.getBytes(this.charset));
+        return ByteBuffer.wrap(Strings.nullEmpty(value).getBytes(this.charset));
     }
 
 }

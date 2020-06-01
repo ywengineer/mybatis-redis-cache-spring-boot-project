@@ -76,7 +76,7 @@ public enum ProtostuffCodec implements RedisCodec<String, Object> {
      */
     @Override
     public ByteBuffer encodeKey(String key) {
-        return ByteBuffer.wrap(key.getBytes(StandardCharsets.UTF_8));
+        return ByteBuffer.wrap(Strings.nullEmpty(key).getBytes(StandardCharsets.UTF_8));
     }
 
     /**
@@ -87,6 +87,9 @@ public enum ProtostuffCodec implements RedisCodec<String, Object> {
      */
     @Override
     public ByteBuffer encodeValue(Object value) {
+        if (value == null) {
+            value = new Object();
+        }
         // Re-use (manage) this buffer to avoid allocating on every serialization
         LinkedBuffer buffer = BUFFER_FAST_THREAD_LOCAL.get();
         // ser
