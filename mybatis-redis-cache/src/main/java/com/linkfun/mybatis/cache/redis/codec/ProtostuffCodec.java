@@ -12,6 +12,7 @@ import io.protostuff.runtime.RuntimeSchema;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ArrayUtils;
 
 /**
  * Description:
@@ -58,6 +59,9 @@ public enum ProtostuffCodec implements RedisCodec<String, Object> {
      */
     @Override
     public Object decodeValue(ByteBuffer bytes) {
+        if (bytes == null || bytes.remaining() == 0) {
+            return null;
+        }
         // deser
         try {
             Wrapper wrapper = schema.newMessage();
@@ -88,7 +92,7 @@ public enum ProtostuffCodec implements RedisCodec<String, Object> {
     @Override
     public ByteBuffer encodeValue(Object value) {
         if (value == null) {
-            value = new Object();
+            return ByteBuffer.wrap(ArrayUtils.EMPTY_BYTE_ARRAY);
         }
         // Re-use (manage) this buffer to avoid allocating on every serialization
         LinkedBuffer buffer = BUFFER_FAST_THREAD_LOCAL.get();

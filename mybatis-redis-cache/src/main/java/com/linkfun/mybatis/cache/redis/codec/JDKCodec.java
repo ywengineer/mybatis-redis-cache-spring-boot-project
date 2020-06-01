@@ -10,6 +10,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
 import io.lettuce.core.codec.RedisCodec;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.ibatis.cache.CacheException;
 
 public enum JDKCodec implements RedisCodec<String, Object> {
@@ -41,7 +42,7 @@ public enum JDKCodec implements RedisCodec<String, Object> {
      */
     @Override
     public Object decodeValue(ByteBuffer bytes) {
-        if (bytes == null) {
+        if (bytes == null || bytes.remaining() == 0) {
             return null;
         }
         try (ByteArrayInputStream bais = new ByteArrayInputStream(Strings.readAll(bytes));
@@ -72,7 +73,7 @@ public enum JDKCodec implements RedisCodec<String, Object> {
     @Override
     public ByteBuffer encodeValue(Object value) {
         if (value == null) {
-            value = new Object();
+            return ByteBuffer.wrap(ArrayUtils.EMPTY_BYTE_ARRAY);
         }
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
              ObjectOutputStream oos = new ObjectOutputStream(baos)) {

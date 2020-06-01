@@ -13,6 +13,7 @@ import com.esotericsoftware.kryo.serializers.CompatibleFieldSerializer;
 import com.google.common.collect.Sets;
 import io.lettuce.core.codec.RedisCodec;
 import io.netty.util.concurrent.FastThreadLocal;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.tuple.Triple;
 
 public enum KryoCodec implements RedisCodec<String, Object> {
@@ -59,7 +60,7 @@ public enum KryoCodec implements RedisCodec<String, Object> {
      */
     @Override
     public Object decodeValue(ByteBuffer bytes) {
-        if (bytes == null) {
+        if (bytes == null || bytes.remaining() == 0) {
             return null;
         }
         final byte[] b = Strings.readAll(bytes);
@@ -104,7 +105,7 @@ public enum KryoCodec implements RedisCodec<String, Object> {
     @Override
     public ByteBuffer encodeValue(Object object) {
         if (object == null) {
-            object = new Object();
+            return ByteBuffer.wrap(ArrayUtils.EMPTY_BYTE_ARRAY);
         }
         if (!unNormalClassSet.contains(object.getClass())) {
             /**
