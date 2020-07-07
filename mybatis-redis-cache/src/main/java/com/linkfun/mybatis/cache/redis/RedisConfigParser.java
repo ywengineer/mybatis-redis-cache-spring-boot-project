@@ -3,7 +3,7 @@ package com.linkfun.mybatis.cache.redis;
 import java.util.Properties;
 
 import com.linkfun.mybatis.cache.redis.codec.KryoCodec;
-import com.linkfun.mybatis.cache.redis.codec.ProtostuffCodec;
+import com.linkfun.mybatis.cache.redis.codec.protostuff.ProtostuffCodec;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.cache.CacheException;
 import org.apache.ibatis.reflection.MetaObject;

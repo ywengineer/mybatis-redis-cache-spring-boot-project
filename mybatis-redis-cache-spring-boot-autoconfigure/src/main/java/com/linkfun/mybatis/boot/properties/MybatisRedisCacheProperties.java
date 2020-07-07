@@ -19,7 +19,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class MybatisRedisCacheProperties {
 
     private String uri = "redis://localhost:6379/6";
-    private Codec codec = Codec.protostuff;
+    private Codec codec = Codec.kryo;
     private Mode mode = Mode.standalone;
     private Pool pool;
 
